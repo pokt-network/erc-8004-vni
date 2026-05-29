@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/pokt-network/erc-8004-vni/main/schema/policy-v1.schema.json",
+  "title": "VNI SelectionPolicy v1",
+  "description": "Canonical SelectionPolicy for the ERC-8004 Validation Network Interface (VNI), Draft v0.2. This schema describes the logical decoding of the ABI-encoded `policy` bytes passed to IValidationNetwork.submit()/supportsPolicy()/quote(). The on-chain wire format is the ABI encoding of the SelectionPolicy struct; this JSON Schema documents the field semantics, types, and the constraints expressible without cross-field arithmetic. Cross-field constraints (minOperators <= selectionSize, minResponses <= selectionSize) are NORMATIVE in the spec but not enforceable by JSON Schema alone; see allOf notes below.",
+  "type": "object",
+  "required": [
+    "version",
+    "selectionSize",
+    "minOperators",
+    "minResponses",
+    "deadlineSeconds",
+    "verdictMode",
+    "challengeKind",
+    "extensions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "description": "Policy schema version. MUST be 1 for this revision. Networks MUST treat any unrecognized version as unsupported and supportsPolicy() MUST return false.",
+      "type": "integer",
+      "const": 1
+    },
+    "selectionSize": {
+      "description": "N: number of validators to select. MUST be >= 1. uint8 on the wire.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 255
+    },
+    "minOperators": {
+      "description": "D: minimum distinct operators across the selected set. MUST be <= selectionSize. Enforced at SELECTION time, not response time. A network whose effective operator count is below this MUST return false from supportsPolicy(). uint8 on the wire.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 255
+    },
+    "minResponses": {
+      "description": "M: minimum attestations required for a valid aggregated response. MUST be <= selectionSize. uint8 on the wire.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 255
+    },
+    "deadlineSeconds": {
+      "description": "Wall-clock budget in seconds from submit() to aggregated response. uint64 on the wire. Values above 2^53-1 cannot be represented exactly as a JSON number; serializers MAY encode this field as a decimal string for off-chain transport.",
+      "type": ["integer", "string"],
+      "minimum": 0,
+      "maximum": 18446744073709551615,
+      "pattern": "^[0-9]+$"
+    },
+    "verdictMode": {
+      "description": "Aggregation rule. 0 = any-pass, 1 = majority, 2 = unanimous. uint8 on the wire.",
+      "type": "integer",
+      "enum": [0, 1, 2]
+    },
+    "challengeKind": {
+      "description": "Network-defined kind tag, e.g. keccak256(\"rpc-equivalence-v1\"). 32-byte hex value. bytes32 on the wire.",
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "extensions": {
+      "description": "Network-specific opaque field. For canonical policies this MUST decode to empty (the zero-length byte string, hex \"0x\"). Network-aware clients MAY pack additional ABI-encoded fields here; canonical decoders ignore the remainder.",
+      "type": "string",
+      "pattern": "^0x([0-9a-fA-F]{2})*$",
+      "default": "0x"
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "NORMATIVE cross-field constraint (not machine-enforced here): minOperators MUST be <= selectionSize."
+    },
+    {
+      "$comment": "NORMATIVE cross-field constraint (not machine-enforced here): minResponses MUST be <= selectionSize."
+    }
+  ],
+  "examples": [
+    {
+      "version": 1,
+      "selectionSize": 5,
+      "minOperators": 3,
+      "minResponses": 4,
+      "deadlineSeconds": 120,
+      "verdictMode": 1,
+      "challengeKind": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "extensions": "0x"
+    }
+  ]
+}
