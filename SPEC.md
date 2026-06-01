@@ -3,6 +3,7 @@ title: "ERC-8004 Validation Network Interface"
 description: A standard interface for permissionless, operator-diverse validator networks plugging into ERC-8004's Validation Registry
 status: Draft v0.2
 type: Extension to ERC-8004
+discussions-to: https://ethereum-magicians.org/t/erc-8004-validation-network-interface-extension-for-multi-validator-networks/28669
 authors:
   - Chris "Jinx" Jenkins (Pocket Network Foundation) @TheFeloniousMonk
   - Luis Correa de León (Synaptika) @luyzdeleon

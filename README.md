@@ -4,6 +4,8 @@ A standard interface for permissionless, operator-diverse validator networks plu
 
 **Status:** Draft v0.2 — Extension to ERC-8004
 
+**Discussion:** [Fellowship of Ethereum Magicians thread](https://ethereum-magicians.org/t/erc-8004-validation-network-interface-extension-for-multi-validator-networks/28669)
+
 The full specification lives in [**SPEC.md**](./SPEC.md).
 
 ## What this is
