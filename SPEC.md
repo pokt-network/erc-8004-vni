@@ -21,7 +21,7 @@ license: CC0
 
 This proposal extends ERC-8004's Validation Registry by defining a standard contract interface, `IValidationNetwork`, that allows a `validatorAddress` to be a network of independent validators rather than a single party. A conforming network selects validators according to a caller-supplied policy, collects signed attestations from the selected set, and submits a single aggregated response back through the existing Validation Registry. The extension introduces operator-diversity as a first-class policy parameter and standardizes the attestation envelope so that responses from any conforming network can be verified by any client using the same code.
 
-The proposal is strictly additive. The Validation Registry contract is not modified, single-address validators continue to work unchanged, and any sufficiently decentralized network — permissionless RPC networks, restaking-based AVSs, TEE consortia, decentralized oracle networks — can implement the interface.
+The proposal is strictly additive. The Validation Registry contract is not modified, single-address validators continue to work unchanged, and any sufficiently decentralized network — permissionless RPC networks, restaking-based Actively Validated Services (AVSs), TEE consortia, decentralized oracle networks — can implement the interface.
 
 ## Motivation
 
@@ -90,7 +90,9 @@ interface IValidationNetwork {
     ///      and verify that the returned validatorAddress equals address(this). If it does
     ///      not, implementations MUST revert with NotAddressee(requestHash). This check
     ///      prevents griefing where a third party burns a network's resources on requests
-    ///      addressed to a different validator.
+    ///      addressed to a different validator. Callers SHOULD register validationRequest()
+    ///      and call submit() in the same transaction or otherwise ensure submit() observes
+    ///      the intended validatorAddress before the network begins work.
     ///
     ///      Implementations SHOULD also reject duplicate submissions for the same requestHash
     ///      (revert with AlreadySubmitted) and policies they cannot satisfy (revert with
@@ -209,7 +211,7 @@ Attestation {
     uint256 agentId;
     address validator;
     uint8 verdict;          // 0..100, same scale as ERC-8004 validationResponse
-    bytes32 evidenceHash;   // keccak256 of off-chain evidence file
+    bytes32 evidenceHash;   // keccak256 of canonical, unframed off-chain evidence payload
     uint64 issuedAt;        // unix seconds, validator's view
     bytes32 challengeKind;  // copied from policy
     bytes32 nonceHash;      // keccak256 of the network-issued nonce, if any
@@ -220,7 +222,7 @@ The off-chain aggregated response file referenced from the Validation Registry's
 
 ```json
 {
-  "version": "vni-v1",
+  "schema": "erc-8004-vni/aggregated-response/v1",
   "requestHash": "0x...",
   "policy": "0x...",
   "validators": ["0x...", "0x..."],
@@ -241,9 +243,11 @@ The off-chain aggregated response file referenced from the Validation Registry's
 }
 ```
 
-The `attestationsRoot` is a Merkle root over the per-validator attestation hashes, included so a holder of a single attestation can prove inclusion without the full file.
+The `schema` field identifies the aggregated-response schema version. Networks MAY use a more specific namespaced schema value for extension documents, but generic clients MUST recognize `erc-8004-vni/aggregated-response/v1` for this revision.
 
-The aggregated `responseHash` written to the Validation Registry is the keccak256 of the canonical JSON serialization of this file (RFC 8785 / JCS).
+The `attestationsRoot` is a Merkle root over the per-validator EIP-712 attestation struct hashes, included so a holder of a single attestation can prove inclusion without the full file. For a response containing exactly one attestation, `attestationsRoot` is the single attestation struct hash with no additional Merkle wrapping.
+
+The aggregated `responseHash` written to the Validation Registry is the keccak256 of the canonical JSON serialization of this file (RFC 8785 / JCS). The per-attestation `evidenceHash` is computed over the canonical, unframed evidence payload and is independent of any transport envelope used to store or retrieve that evidence.
 
 ### Aggregated Verdict
 
@@ -306,13 +310,13 @@ The full list and the verification semantics for each kind belong in a separate,
 
 **Why aggregate on-chain via existing Validation Registry.** The Validation Registry already stores `validatorAddress`, `requestHash`, `response`, `responseHash`, `tag`, `lastUpdate`. This is sufficient for an aggregated response. Forking the registry would split tooling, indexers, and explorers (8004scan, agentscan, etc.) for no gain.
 
-**Why EIP-712 typed-data attestations.** Wallets and standard libraries already verify EIP-712. A custom signing scheme would force every client integration to bring its own verifier.
+**Why EIP-712 typed-data attestations.** Wallets and standard libraries already verify EIP-712. A custom signing scheme would force every client integration to bring its own verifier. This specification fixes the EIP-712 typed-data layout that validators sign; it does not require any particular Solidity function shape for submitting or storing those attestations on a conforming network contract.
 
 **Why JCS canonical JSON.** The off-chain aggregated file must hash deterministically across implementations. JCS is the cheapest path to that property.
 
 **Why the extensions field in SelectionPolicy.** Networks need room to evolve. Canonical policies decode `extensions` to empty and ignore the rest; network-aware clients can pack additional fields without breaking compatibility.
 
-**Why mandatory addressee verification on submit().** Without an explicit check, a third party who watches the Validation Registry can call any network's `submit()` for a `requestHash` that was registered with a different `validatorAddress`. The network has no contract-level signal that it is not the legitimate addressee and may burn resources on a request it should never have accepted. Requiring `submit()` to read `getValidationStatus(requestHash)` and revert with `NotAddressee` if the recorded `validatorAddress` is not `address(this)` closes the griefing path at the interface layer rather than relying on per-network convention.
+**Why mandatory addressee verification on submit().** Without an explicit check, a third party who watches the Validation Registry can call any network's `submit()` for a `requestHash` that was registered with a different `validatorAddress`. The network has no contract-level signal that it is not the legitimate addressee and may burn resources on a request it should never have accepted. Requiring `submit()` to read `getValidationStatus(requestHash)` and revert with `NotAddressee` if the recorded `validatorAddress` is not `address(this)` closes the griefing path at the interface layer rather than relying on per-network convention. Bundling the registry `validationRequest()` and network `submit()` calls, where available, also minimizes the window in which a client can accidentally submit against stale or unintended registry state.
 
 **Why binary aggregated verdicts.** A spectrum verdict (e.g., the mean of received attestations) collapses the timeout case into the success case: a timeout that produced no attestations is indistinguishable from "every validator returned 0," and a partial-response under spectrum mode is indistinguishable from a full-response with low scores. Binary verdicts plus an explicit tag vocabulary preserve that distinction without forcing every generic client to branch on `verdictMode` to interpret `aggregatedVerdict`. Spectrum verdicts may be revisited in a follow-on extension.
 
@@ -361,10 +365,10 @@ The following are unresolved and explicitly invited for co-author and community 
 - **Policy schema standardization.** This draft proposes a canonical `SelectionPolicy` struct. Should the schema be registry-defined (extensible per network) or fixed at this layer? Current lean: fixed canonical schema with an opaque `extensions` field for network-specific additions.
 - **Validation network registry.** Should there be a contract registering known validation networks (analogous to the agent registry)? Current lean: no — clients pass `validatorAddress` directly to the Validation Registry, and discovery happens through agent endpoints. A registry may emerge organically at the indexer layer.
 - **Interaction with EIP-7702.** Sponsored validation requests (where a third party pays gas for a client's request) are common in agent flows. This draft does not specify EIP-7702 hooks. Should it?
-- **TEE attestation pass-through.** Should the spec define a normative `tee-attestation-pass-through-v1` challenge kind, or leave TEE bridging to TEE-implementer documentation?
-- **Slashing surface.** Networks define their own slashing internally. Should the interface expose a normative `slash(validator, evidence)` hook so clients can trigger network-internal slashing in standard form, or is that strictly out of scope?
-- **Cost discovery.** `quote()` returns a single price. Real networks may price differently per validator or per challenge kind. Is a single `uint256` expressive enough, or does this need to be a structured response?
-- **Multi-network aggregation.** A natural follow-on is "request the same validation from K networks and combine." Is this a separate spec or an addendum here?
+- **TEE attestation pass-through.** Should the spec define a normative `tee-attestation-pass-through-v1` challenge kind, or leave TEE bridging to TEE-implementer documentation? Current lean: leave the kind in an evolving challenge-kind registry rather than make TEE pass-through normative in this interface.
+- **Slashing surface.** Networks define their own slashing internally. Should the interface expose a normative `slash(validator, evidence)` hook so clients can trigger network-internal slashing in standard form, or is that strictly out of scope? Current lean: strictly out of scope for v1 because slashing evidence, adjudication, and penalty mechanics are network-specific.
+- **Cost discovery.** `quote()` returns a single price. Real networks may price differently per validator or per challenge kind. Is a single `uint256` expressive enough, or does this need to be a structured response? Current lean: a single total price is sufficient for v1; networks needing richer price breakdowns can expose them out of band.
+- **Multi-network aggregation.** A natural follow-on is "request the same validation from K networks and combine." Is this a separate spec or an addendum here? Current lean: separate follow-on spec.
 - **Spectrum verdicts as a follow-on.** v1 is binary-only by design (see Rationale). Should a follow-on extension define `verdictMode = mean` (or weighted-mean) plus the tag and timeout semantics needed to keep success and failure cases distinguishable? Current lean: yes, but only after at least one pilot demonstrates a use case where binary loses meaningful information.
 
 ## References
