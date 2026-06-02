@@ -53,6 +53,16 @@ The extension adds three things on top of ERC-8004:
 - A policy schema (`SelectionPolicy`) that callers pass to express assurance requirements.
 - An attestation envelope (`Attestation`) signed by individual validators and aggregated into the response.
 
+### Definitions
+
+This specification uses three distinct identity layers:
+
+- **Validation network** — the smart contract address used as the ERC-8004 `validatorAddress`. This address exposes `IValidationNetwork`, accepts `submit()` calls, selects validators, and writes the aggregated response back to the Validation Registry.
+- **Validator** — an individual signing key or address selected by a validation network for a specific request. Validators produce the EIP-712 attestations included in the aggregated response.
+- **Operator** — the entity that controls one or more validators. Operator identity is used to evaluate `minOperators` and other diversity claims; a network's published operator-identification methodology defines how validator keys are clustered into operators.
+
+A single operator MAY control multiple validators, and a single validation network MAY use validators controlled by many operators. Clients SHOULD NOT treat validator count as equivalent to operator count unless the network's methodology justifies that mapping.
+
 ### Contract Interface
 
 ```solidity
@@ -186,11 +196,29 @@ struct SelectionPolicy {
 
 Networks MUST treat any policy whose version they do not recognize as unsupported and `supportsPolicy()` MUST return false.
 
+### Validation Lifecycle
+
+A request has two observable layers of lifecycle state: ERC-8004 registry state and validation-network-local state. The ERC-8004 Validation Registry is the canonical source for the final `response`, `responseHash`, `tag`, and `lastUpdate`. VNI events and `status()` provide additional observability for clients and indexers while the request is in flight.
+
+A conforming network SHOULD expose the following lifecycle progression:
+
+1. **Unknown** — the network has not accepted the `requestHash`.
+2. **Accepted** — `submit()` has accepted the request and emitted `RequestAccepted`.
+3. **Validators selected** — the network has selected validators and emitted `ValidatorsSelected`.
+4. **Responded** — the network has aggregated enough attestations and called `validationResponse()` with `tag = "vni:ok"`.
+5. **Failed terminal** — the network has called `validationResponse()` with a non-`vni:ok` tag such as `vni:timeout`, `vni:insufficient-operators`, or `vni:cancelled`.
+
+After a network writes a terminal response to the Validation Registry for a `requestHash`, later attestations for that request SHOULD NOT change the canonical aggregated response. Networks MAY retain or publish late attestations for auditability, but generic clients and indexers MUST treat the already-written Validation Registry response as the canonical result for that request.
+
 ### Operator Diversity
 
 `minOperators` is the central decentralization knob and MUST be enforced at selection time, not at response time. A network whose effective operator count is O and which receives a policy with `minOperators` > O MUST refuse the request via `supportsPolicy()` returning false rather than silently degrading.
 
 How a network defines "operator" is network-specific (staking address, key cluster, self-declared operator ID, etc.) and SHOULD be documented in a public operator-identification methodology alongside the deployed contract. The methodology document is the artifact a third-party auditor uses to verify the network's diversity claims. Pseudo-anonymous Sybil at the operator level is a known risk; networks SHOULD describe their mitigations in the same document.
+
+The same methodology SHOULD also define the network's eligibility set: which validators are eligible for selection at a given time, how entry and exit are recognized, and which liveness or freshness signals are required. Examples include stake or registration status, active-session membership, heartbeat freshness, jail/slashing state, or other network-specific availability criteria.
+
+Networks SHOULD publish a versioned, content-addressed methodology document and SHOULD make the active methodology version discoverable alongside the deployed contract. Where practical, networks SHOULD anchor the methodology hash or version on-chain so clients and auditors can detect silent changes to the eligibility or operator-clustering rules used to satisfy a policy.
 
 ### Attestation Envelope
 
@@ -245,6 +273,14 @@ The `attestationsRoot` is a Merkle root over the per-validator attestation hashe
 
 The aggregated `responseHash` written to the Validation Registry is the keccak256 of the canonical JSON serialization of this file (RFC 8785 / JCS).
 
+### Response URI Semantics
+
+ERC-8004 stores `responseURI` as a locator for the off-chain aggregated response file. This extension standardizes the contents and hash of that file, but does not require a single transport or URI scheme.
+
+Generic clients SHOULD treat `responseURI` as an opaque, network-defined locator unless they explicitly understand the network's documented scheme. Networks SHOULD document how to resolve their `responseURI` values and how those values relate to the `responseHash` written to the Validation Registry.
+
+Valid network-defined locator forms include HTTPS URLs, IPFS URIs, blob transaction hashes, content-addressed object identifiers, or other opaque strings. Regardless of locator form, the resolved aggregated response file MUST hash to the recorded `responseHash` under the canonical JSON rules above.
+
 ### Aggregated Verdict
 
 The aggregated verdict written to ERC-8004's `validationResponse()` is binary in this revision and computed per `verdictMode`:
@@ -271,6 +307,14 @@ The `tag` argument to ERC-8004's `validationResponse()` carries the network's ou
 Networks MAY define additional tag values for network-specific outcomes; non-normative tags MUST be prefixed `vni:x-` to avoid collision with future normative additions.
 
 A client interpreting an aggregated response MUST treat any tag other than `vni:ok` as a non-meaningful verdict regardless of the numeric value, and MUST NOT use the verdict to update reputation or downstream state.
+
+### Payment Lifecycle
+
+`quote(policy)` is a pre-flight pricing and ETA signal for `submit()`. If `quote()` returns a finite `priceWei`, callers SHOULD expect to provide that amount as `msg.value` to `submit()` unless the network documents another payment path. If `quote()` returns `OUT_OF_BAND_PRICE`, payment discovery and settlement happen outside this interface through the network's documented channel.
+
+For on-chain-priced requests, networks SHOULD document when payment is considered earned: at request acceptance, validator selection, aggregation, successful `vni:ok` response, or another explicit milestone. Networks SHOULD also document refund or retention behavior for non-`vni:ok` terminal tags, especially `vni:timeout` and `vni:cancelled`.
+
+Generic clients MUST NOT assume that a non-`vni:ok` response implies a refund, partial refund, or forfeiture unless the network's payment documentation specifies that behavior. Payment semantics are network-specific; the interface only standardizes the price quote and the outcome tags needed to interpret the result.
 
 ### Assurance Tiers (Informative)
 
