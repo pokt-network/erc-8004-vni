@@ -117,6 +117,15 @@ interface IValidationNetwork {
     ///      eips.ethereum.org anchor if this extension is accepted as an ERC.
     function policySchema() external view returns (string memory);
 
+    /// @notice Identifier for the network's aggregation and verification model.
+    /// @dev Returns a stable bytes32 profile identifier documented by the network.
+    ///      Generic clients use this as an introspection signal for what they are
+    ///      trusting: signature-only aggregation, indexer-attested selection,
+    ///      light-client-backed selection, zk/TEE-backed execution, or another
+    ///      network-defined profile. This mirrors the proofProfile-style pattern
+    ///      used by proof-verifier interfaces without requiring a registry here.
+    function verificationProfile() external view returns (bytes32);
+
     /// @notice Whether this network can serve a given policy.
     /// @dev Networks MUST return false for policies whose minOperators exceeds the
     ///      network's distinct-operator capacity. Networks SHOULD return false for any
@@ -185,6 +194,14 @@ struct SelectionPolicy {
 ```
 
 Networks MUST treat any policy whose version they do not recognize as unsupported and `supportsPolicy()` MUST return false.
+
+### Verification Profile
+
+`verificationProfile()` identifies the aggregation and verification model a network uses for selected validators and returned attestations. The value is a stable `bytes32` profile identifier documented by the network, not a registry entry created by this specification.
+
+The profile tells relying parties what trust boundary remains after signature verification. Examples include signature-only aggregation, indexer-attested selection, light-client-backed selection, zk execution proof, TEE execution proof, or network-defined hybrids. `supportsPolicy()` remains the capability check for whether a specific policy can be served; `verificationProfile()` is the introspection surface for what verification model the client is relying on.
+
+Networks MAY reuse profile identifiers from compatible proof-verifier interfaces where available. This lets VNI compose with external proof-verification standards without enumerating every verification model in this interface.
 
 ### Operator Diversity
 
@@ -293,6 +310,7 @@ The `challengeKind` field tags the type of validation being requested. Networks 
 - `keccak256("rpc-equivalence-v1")` — verify the agent's RPC endpoint returns results consistent with a reference set.
 - `keccak256("a2a-card-fetch-v1")` — verify the agent's A2A AgentCard is reachable and well-formed.
 - `keccak256("tee-attestation-pass-through-v1")` — verify a presented TEE attestation; the network bridges, does not re-execute.
+- `keccak256("wyriwe-input-provenance-v1")` — verify an input-provenance chain such as `rawInputHash -> sanitizationPipelineHash -> inputHash`, returning the committed `inputHash` as evidence.
 
 The full list and the verification semantics for each kind belong in a separate, evolving registry document.
 
@@ -309,6 +327,8 @@ The full list and the verification semantics for each kind belong in a separate,
 **Why EIP-712 typed-data attestations.** Wallets and standard libraries already verify EIP-712. A custom signing scheme would force every client integration to bring its own verifier.
 
 **Why JCS canonical JSON.** The off-chain aggregated file must hash deterministically across implementations. JCS is the cheapest path to that property.
+
+**Why a verification profile.** Validator signatures prove who attested, but they do not by themselves prove that validator selection was legitimate or that the network's aggregation path was independently verifiable. A compact `bytes32` profile identifier lets clients distinguish signature-only aggregation from stronger models such as indexer-attested, light-client-backed, zk-backed, or TEE-backed verification without forcing this interface to define a closed enum.
 
 **Why the extensions field in SelectionPolicy.** Networks need room to evolve. Canonical policies decode `extensions` to empty and ignore the rest; network-aware clients can pack additional fields without breaking compatibility.
 
