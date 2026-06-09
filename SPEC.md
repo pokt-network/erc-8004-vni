@@ -140,6 +140,15 @@ interface IValidationNetwork is IERC165 {
     ///      eips.ethereum.org anchor if this extension is accepted as an ERC.
     function policySchema() external view returns (string memory);
 
+    /// @notice Identifier for the network's aggregation and verification model.
+    /// @dev Returns a stable bytes32 profile identifier documented by the network.
+    ///      Generic clients use this as an introspection signal for what they are
+    ///      trusting: signature-only aggregation, indexer-attested selection,
+    ///      light-client-backed selection, zk/TEE-backed execution, or another
+    ///      network-defined profile. This mirrors the proofProfile-style pattern
+    ///      used by proof-verifier interfaces without requiring a registry here.
+    function verificationProfile() external view returns (bytes32);
+
     /// @notice Whether this network can serve a given policy.
     /// @dev Networks MUST return false for policies whose minOperators exceeds the
     ///      network's distinct-operator capacity. Networks SHOULD return false for any
@@ -208,6 +217,14 @@ struct SelectionPolicy {
 ```
 
 Networks MUST treat any policy whose version they do not recognize as unsupported and `supportsPolicy()` MUST return false.
+
+### Verification Profile
+
+`verificationProfile()` identifies the aggregation and verification model a network uses for selected validators and returned attestations. The value is a stable `bytes32` profile identifier documented by the network, not a registry entry created by this specification.
+
+The profile tells relying parties what trust boundary remains after signature verification. Examples include signature-only aggregation, indexer-attested selection, light-client-backed selection, zk execution proof, TEE execution proof, or network-defined hybrids. `supportsPolicy()` remains the capability check for whether a specific policy can be served; `verificationProfile()` is the introspection surface for what verification model the client is relying on.
+
+Networks MAY reuse profile identifiers from compatible proof-verifier interfaces where available. This lets VNI compose with external proof-verification standards without enumerating every verification model in this interface.
 
 ### Validation Lifecycle
 
@@ -352,6 +369,7 @@ The `challengeKind` field tags the type of validation being requested. Networks 
 - `keccak256("rpc-equivalence-v1")` — verify the agent's RPC endpoint returns results consistent with a reference set.
 - `keccak256("a2a-card-fetch-v1")` — verify the agent's A2A AgentCard is reachable and well-formed.
 - `keccak256("tee-attestation-pass-through-v1")` — verify a presented TEE attestation; the network bridges, does not re-execute.
+- `keccak256("wyriwe-input-provenance-v1")` — verify an input-provenance chain such as `rawInputHash -> sanitizationPipelineHash -> inputHash`, returning the committed `inputHash` as evidence.
 
 The full list and the verification semantics for each kind belong in a separate, evolving registry document.
 
@@ -368,6 +386,10 @@ The full list and the verification semantics for each kind belong in a separate,
 **Why EIP-712 typed-data attestations.** Wallets and standard libraries already verify EIP-712. A custom signing scheme would force every client integration to bring its own verifier. This specification fixes the EIP-712 typed-data layout that validators sign; it does not require any particular Solidity function shape for submitting or storing those attestations on a conforming network contract.
 
 **Why JCS canonical JSON.** The off-chain aggregated file must hash deterministically across implementations. JCS is the cheapest path to that property.
+
+**Why a verification profile.** Validator signatures prove who attested, but they do not by themselves prove that validator selection was legitimate or that the network's aggregation path was independently verifiable. A compact `bytes32` profile identifier lets clients distinguish signature-only aggregation from stronger models such as indexer-attested, light-client-backed, zk-backed, or TEE-backed verification without forcing this interface to define a closed enum.
+
+**Why `agentId` stays `uint256`, and how it composes with ERC-8263.** This interface keeps `agentId` as ERC-8004's `uint256` (the ERC-721 `tokenId` assigned by the Identity Registry). The ERC-8004 + ERC-8263 + OCP composition does not redefine that type: ERC-8263 introduces an `agentIdScheme` discriminator, and for its REGISTRY scheme (`0x01`) — the one that bridges to ERC-8004 — the on-chain anchoring form is `bytes32(uint256(erc8004AgentId))`, a 32-byte zero-padded encoding of the same identifier. Resolution under scheme `0x01` goes through ERC-8004, so no change to VNI's `agentId` field is required for the two to compose; a network that anchors into an ERC-8263 surface simply zero-pads. The `wyriwe-input-provenance-v1` challenge kind above is the L2 input-trust layer of that same stack (ERC-8263 with the WYRIWE input-provenance profile), and `verificationProfile()` is the introspection signal for which model a network actually runs. This is documented here as a non-normative composition note; should a future ERC-8263 revision change the REGISTRY-scheme encoding or the underlying identifier type, that would be a separate, focused change.
 
 **Why the extensions field in SelectionPolicy.** Networks need room to evolve. Canonical policies decode `extensions` to empty and ignore the rest; network-aware clients can pack additional fields without breaking compatibility.
 
@@ -434,6 +456,8 @@ The following are unresolved and explicitly invited for co-author and community 
 - ERC-8004: Trustless Agents — https://eips.ethereum.org/EIPS/eip-8004
 - ERC-8004 discussion thread (Fellowship of Ethereum Magicians) — https://ethereum-magicians.org/t/erc-8004-trustless-agents/25098
 - ERC-8004 awesome-list and reference implementations — https://github.com/sudeepb02/awesome-erc8004
+- Composition note: ERC-8004 + ERC-8263 + OCP (implementer reference for the AI-agent verification stack) — https://ethresear.ch/t/composition-note-erc-8004-erc-8263-ocp-a-reference-guide-for-implementers-building-on-the-ai-agent-verification-stack/24995
+- WYRIWE input-provenance profile — https://github.com/TMerlini/wyriwe
 - EIP-712: Typed structured data hashing and signing — https://eips.ethereum.org/EIPS/eip-712
 - ERC-1271: Standard Signature Validation Method for Contracts — https://eips.ethereum.org/EIPS/eip-1271
 - RFC 8785: JSON Canonicalization Scheme — https://www.rfc-editor.org/rfc/rfc8785
