@@ -2,7 +2,7 @@
 eip:
 title: Validation Network Interface for ERC-8004
 description: A standard interface for permissionless, operator-diverse validator networks plugging into ERC-8004's Validation Registry
-author: Chris "Jinx" Jenkins (@TheFeloniousMonk), Luis Correa de León (@luyzdeleon), Bryan White (@bryanchriswhite), Tiago Merlini (@TMerlini)
+author: Chris "Jinx" Jenkins (@TheFeloniousMonk), Luis Correa de Leon (@luyzdeleon), Bryan White (@bryanchriswhite), Tiago Merlini (@TMerlini)
 discussions-to: https://ethereum-magicians.org/t/erc-8004-validation-network-interface-extension-for-multi-validator-networks/28669
 status: Draft
 type: Standards Track
