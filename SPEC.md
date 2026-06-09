@@ -10,7 +10,7 @@ authors:
   - Bryan White @bryanchriswhite
   - "[additional co-authors TBD]"
 created: 2026-04-13
-revised: 2026-06-01
+revised: 2026-06-09
 extends: ERC-8004 (https://eips.ethereum.org/EIPS/eip-8004)
 license: CC0
 ---
@@ -78,9 +78,10 @@ interface IERC165 {
 
 /// @dev A conforming network MUST implement ERC-165. supportsInterface(interfaceId)
 ///      MUST return true for both type(IERC165).interfaceId (0x01ffc9a7) and
-///      type(IValidationNetwork).interfaceId. This is the canonical way for a client
-///      to detect that a given ERC-8004 validatorAddress is a VNI network before
-///      submitting a request. See Backwards Compatibility for the pinned interface ID.
+///      type(IValidationNetwork).interfaceId, and MUST return false for 0xffffffff.
+///      This is the canonical way for a client to detect that a given ERC-8004
+///      validatorAddress is a VNI network before submitting a request.
+///      See Backwards Compatibility for the interface ID pinning policy.
 interface IValidationNetwork is IERC165 {
     /// @notice Sentinel returned by quote() when pricing is settled out-of-band (e.g. via x402).
     /// @dev A return of (OUT_OF_BAND_PRICE, etaSeconds) instructs the caller to obtain pricing
@@ -336,7 +337,7 @@ The full list and the verification semantics for each kind belong in a separate,
 
 This proposal is strictly additive. It defines a new interface contract type and a payload format for `requestURI` and `responseURI` files. ERC-8004's Validation Registry contract is not modified. Existing single-address validators continue to work unchanged.
 
-Conformance is detectable via ERC-165. A conforming network MUST implement `IERC165` and MUST return true from `supportsInterface(interfaceId)` for `type(IValidationNetwork).interfaceId`. A client resolves whether a given ERC-8004 `validatorAddress` is a VNI network by calling `supportsInterface` on that address; an address that returns false (or does not implement ERC-165) is not a VNI network and is treated as an opaque single-address validator. This is the canonical discovery path and removes the need for any separate validation-network registry.
+Conformance is detectable via ERC-165. A conforming network MUST implement `IERC165` and, per the ERC-165 rules, MUST return true from `supportsInterface(interfaceId)` for both `0x01ffc9a7` (`type(IERC165).interfaceId`) and `type(IValidationNetwork).interfaceId`, MUST return false for `0xffffffff`, and SHOULD answer in at most 30,000 gas. A client resolves whether a given ERC-8004 `validatorAddress` is a VNI network by calling `supportsInterface` on that address; an address that returns false (or does not implement ERC-165) is not a VNI network and is treated as an opaque single-address validator. The mandatory `0xffffffff` response prevents a contract that blindly returns true from being misdetected as a VNI network. This is the canonical discovery path and removes the need for any separate validation-network registry.
 
 > **TODO (v1 freeze):** pin the literal `type(IValidationNetwork).interfaceId` (the XOR of all `IValidationNetwork` function selectors) here as a fixed `bytes4` constant. It is intentionally left unpinned for Draft v0.x because any change to a function signature shifts the value; it MUST be computed and frozen once the interface surface is final.
 

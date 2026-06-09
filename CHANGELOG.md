@@ -11,11 +11,41 @@ This spec uses Draft `v0.x` versioning until a frozen `v1`; while in draft, the
 
 ### Added
 - **ERC-165 conformance is now normative.** `IValidationNetwork` inherits `IERC165`;
-  a conforming network MUST implement `supportsInterface` and MUST return true for
-  `type(IValidationNetwork).interfaceId`. This is the canonical way a client detects
-  that an ERC-8004 `validatorAddress` is a VNI network, and it removes any need for a
-  separate validation-network registry. The literal `interfaceId` is left unpinned
-  until the interface surface is frozen at v1 (it shifts with any signature change).
+  a conforming network MUST implement `supportsInterface`, MUST return true for both
+  `0x01ffc9a7` (`type(IERC165).interfaceId`) and `type(IValidationNetwork).interfaceId`,
+  MUST return false for `0xffffffff`, and SHOULD answer in at most 30,000 gas. This is
+  the canonical way a client detects that an ERC-8004 `validatorAddress` is a VNI
+  network, and it removes any need for a separate validation-network registry. The
+  literal `interfaceId` is left unpinned until the interface surface is frozen at v1.
+- **Identity definitions.** Distinguish validation network, validator, and operator so
+  `minOperators` is not misread as a validator count.
+- **Validation lifecycle.** Document the Unknown → Accepted → Validators-selected →
+  Responded / Failed-terminal progression, and the rule that a written Validation
+  Registry response is canonical (later attestations MUST NOT change it).
+- **Eligibility methodology.** Networks SHOULD publish a versioned, content-addressed
+  operator-identification / eligibility methodology and SHOULD anchor its hash on-chain.
+- **`responseURI` semantics.** Treat `responseURI` as an opaque, network-defined locator;
+  the portable invariant is that the resolved file hashes to the recorded `responseHash`.
+- **Payment lifecycle.** Document finite vs `OUT_OF_BAND_PRICE` pricing and that generic
+  clients MUST NOT infer refund behavior from non-`vni:ok` tags.
+- **`verificationProfile()` introspection.** A stable `bytes32` identifier for a network's
+  aggregation / verification model, complementing `supportsPolicy()` without a registry.
+- **`wyriwe-input-provenance-v1` challenge kind** and a non-normative ERC-8263 composition
+  note (`agentId` stays `uint256`; REGISTRY scheme `0x01` anchors as `bytes32(uint256(agentId))`).
+
+### Changed
+- **Aggregated-response `version` → `schema`**, with canonical value
+  `erc-8004-vni/aggregated-response/v1`.
+- **`evidenceHash`** is computed over the canonical, unframed evidence payload, independent
+  of any transport envelope.
+- **`submit()` sequencing.** Callers SHOULD ensure `submit()` observes the intended
+  `validatorAddress` (e.g. bundle with `validationRequest()`) before work begins.
+- **`attestationsRoot`** single-attestation case defined as the lone EIP-712 struct hash,
+  with no Merkle wrapping.
+- **EIP-712 attestation layout is normative**; contract-specific submission/storage
+  function shapes are implementation-defined.
+- Recorded current-lean positions for the TEE, slashing, cost-discovery, and
+  multi-network open questions; expanded AVS on first use.
 
 ### Removed
 - **EIP-7702 open question.** Sponsored validation is a separate trust boundary and
