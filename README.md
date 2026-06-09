@@ -6,7 +6,7 @@ A standard interface for permissionless, operator-diverse validator networks plu
 
 **Discussion:** [Fellowship of Ethereum Magicians thread](https://ethereum-magicians.org/t/erc-8004-validation-network-interface-extension-for-multi-validator-networks/28669)
 
-The full specification lives in [**SPEC.md**](./SPEC.md).
+The full specification lives in [**SPEC.md**](./SPEC.md). Change history is in [CHANGELOG.md](./CHANGELOG.md).
 
 ## What this is
 
