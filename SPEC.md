@@ -1,21 +1,15 @@
 ---
-title: "ERC-8004 Validation Network Interface"
+eip:
+title: Validation Network Interface for ERC-8004
 description: A standard interface for permissionless, operator-diverse validator networks plugging into ERC-8004's Validation Registry
-status: Draft v0.2
-type: Extension to ERC-8004
+author: Chris "Jinx" Jenkins (@TheFeloniousMonk), Luis Correa de León (@luyzdeleon), Bryan White (@bryanchriswhite), Tiago Merlini (@TMerlini)
 discussions-to: https://ethereum-magicians.org/t/erc-8004-validation-network-interface-extension-for-multi-validator-networks/28669
-authors:
-  - Chris "Jinx" Jenkins (Pocket Network Foundation) @TheFeloniousMonk
-  - Luis Correa de León (Synaptika) @luyzdeleon
-  - Bryan White @bryanchriswhite
-  - "[additional co-authors TBD]"
+status: Draft
+type: Standards Track
+category: ERC
 created: 2026-04-13
-revised: 2026-06-09
-extends: ERC-8004 (https://eips.ethereum.org/EIPS/eip-8004)
-license: CC0
+requires: 712, 8004
 ---
-
-# ERC-8004 Validation Network Interface
 
 ## Abstract
 
@@ -25,7 +19,7 @@ The proposal is strictly additive. The Validation Registry contract is not modif
 
 ## Motivation
 
-ERC-8004's Validation Registry is intentionally unopinionated about who validates. Its `validationRequest(validatorAddress, agentId, requestURI, requestHash)` accepts any address; the spec leaves "incentives and slashing related to validation … outside the scope of this registry."
+ERC-8004's Validation Registry is intentionally unopinionated about who validates. Its `validationRequest(validatorAddress, agentId, requestURI, requestHash)` accepts any address; the spec leaves "incentives and slashing related to validation ... outside the scope of this registry."
 
 This is a deliberate design choice and a correct one. It leaves room for many validator implementations to compete on the merits.
 
@@ -317,9 +311,9 @@ Valid network-defined locator forms include HTTPS URLs, IPFS URIs, blob transact
 
 The aggregated verdict written to ERC-8004's `validationResponse()` is binary in this revision and computed per `verdictMode`:
 
-- **any-pass**: 100 if any received attestation reports verdict ≥ 50, else 0.
-- **majority**: 100 if more than half of received attestations report verdict ≥ 50, else 0.
-- **unanimous**: 100 if all received attestations report verdict ≥ 50, else 0.
+- **any-pass**: 100 if any received attestation reports verdict >= 50, else 0.
+- **majority**: 100 if more than half of received attestations report verdict >= 50, else 0.
+- **unanimous**: 100 if all received attestations report verdict >= 50, else 0.
 
 In all three modes, the aggregated verdict is exactly 0 or 100. Spectrum verdicts (e.g., a literal mean of received verdicts) are deferred; see Open Questions.
 
