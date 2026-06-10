@@ -8,7 +8,7 @@ A standard interface for permissionless, operator-diverse validator networks plu
 
 The full specification lives in [**SPEC.md**](./SPEC.md). Change history is in [CHANGELOG.md](./CHANGELOG.md).
 
-[`erc-8294.md`](./erc-8294.md) is a local mirror of the canonical submission at [ethereum/ERCs#1808](https://github.com/ethereum/ERCs/pull/1808). `SPEC.md` is the human-readable copy; `erc-8294.md` tracks the upstream EIP file (eipw-specific link/`LICENSE` formatting is applied upstream by the editors).
+[`erc-8294.md`](./erc-8294.md) is a local mirror of the canonical submission at [ethereum/ERCs#1808](https://github.com/ethereum/ERCs/pull/1808). `SPEC.md` is the human-readable copy with working links; `erc-8294.md` mirrors the upstream EIP file byte-for-byte, **including its `eipw` formatting** (relative `./erc-*.md` / `./eip-*.md` links and the `../LICENSE` copyright path) — those paths intentionally do not resolve in this repo and exist only to match upstream.
 
 ## What this is
 
