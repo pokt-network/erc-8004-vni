@@ -2,9 +2,9 @@
 
 A standard interface for permissionless, operator-diverse validator networks plugging into [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004)'s Validation Registry.
 
-**Status:** Draft v0.2 — Extension to ERC-8004
+**Status:** Draft — ERC-8294 (Standards Track, extends [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004))
 
-**Discussion:** [Fellowship of Ethereum Magicians thread](https://ethereum-magicians.org/t/erc-8004-validation-network-interface-extension-for-multi-validator-networks/28669)
+**Discussion:** [Fellowship of Ethereum Magicians thread](https://ethereum-magicians.org/t/erc-8294-validation-network-interface-for-erc-8004/28669)
 
 The full specification lives in [**SPEC.md**](./SPEC.md). Change history is in [CHANGELOG.md](./CHANGELOG.md).
 

@@ -34,6 +34,9 @@ This spec uses Draft `v0.x` versioning until a frozen `v1`; while in draft, the
   note (`agentId` stays `uint256`; REGISTRY scheme `0x01` anchors as `bytes32(uint256(agentId))`).
 
 ### Changed
+- **Submitted to `ethereum/ERCs` ([PR #1808](https://github.com/ethereum/ERCs/pull/1808)); assigned ERC-8294.**
+  ERC title set to "Validation Network for ERC-8004" (dropped "Interface" per editor review);
+  `eip: 8294` and updated `discussions-to` slug.
 - **Aggregated-response `version` → `schema`**, with canonical value
   `erc-8004-vni/aggregated-response/v1`.
 - **`evidenceHash`** is computed over the canonical, unframed evidence payload, independent
