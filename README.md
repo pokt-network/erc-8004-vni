@@ -8,6 +8,8 @@ A standard interface for permissionless, operator-diverse validator networks plu
 
 The full specification lives in [**SPEC.md**](./SPEC.md). Change history is in [CHANGELOG.md](./CHANGELOG.md).
 
+[`erc-8294.md`](./erc-8294.md) is a local mirror of the canonical submission at [ethereum/ERCs#1808](https://github.com/ethereum/ERCs/pull/1808). `SPEC.md` is the human-readable copy; `erc-8294.md` tracks the upstream EIP file (eipw-specific link/`LICENSE` formatting is applied upstream by the editors).
+
 ## What this is
 
 VNI defines a contract interface, `IValidationNetwork`, that lets an ERC-8004 `validatorAddress` be a *network of independent validators* rather than a single party. A conforming network selects validators per a caller-supplied policy, collects signed attestations, and submits one aggregated response through the existing Validation Registry — with operator-diversity as a first-class policy parameter.
