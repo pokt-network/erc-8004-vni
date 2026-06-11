@@ -21,7 +21,7 @@ The proposal is strictly additive: the Validation Registry is not modified, sing
 - Chris "Jinx" Jenkins (Pocket Network Foundation) — @TheFeloniousMonk
 - Luis Correa de León (Synaptika) — @luyzdeleon
 - Bryan White — @bryanchriswhite
-- [additional co-authors TBD]
+- Tiago Merlini — @TMerlini
 
 ## License
 
