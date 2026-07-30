@@ -10,6 +10,14 @@ This spec uses Draft `v0.x` versioning until a frozen `v1`; while in draft, the
 ## [Unreleased]
 
 ### Added
+- **Reproducibility-backed verification profiles.** The Verification Profile section
+  now names the second assurance family: deterministic-replay profiles, where the
+  client recomputes the verdict from pre-committed public inputs instead of weighting
+  signatures across an operator set. Adds the Rationale entry distinguishing the two
+  families, an orthogonality note on the Assurance Tiers table (a replay network at
+  `selectionSize = 1` is not a Tier 1 cheap signal), and a Security Considerations
+  entry making input pre-commitment normative for replay profiles: replay without
+  pre-commitment proves determinism, not honesty.
 - **ERC-165 conformance is now normative.** `IValidationNetwork` inherits `IERC165`;
   a conforming network MUST implement `supportsInterface`, MUST return true for both
   `0x01ffc9a7` (`type(IERC165).interfaceId`) and `type(IValidationNetwork).interfaceId`,
