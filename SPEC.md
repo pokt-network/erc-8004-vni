@@ -220,6 +220,8 @@ The profile tells relying parties what trust boundary remains after signature ve
 
 Networks MAY reuse profile identifiers from compatible proof-verifier interfaces where available. This lets VNI compose with external proof-verification standards without enumerating every verification model in this interface.
 
+The profiles above all locate residual trust in a set of operators, provers, or enclaves. A profile MAY instead locate assurance in reproducibility. Under a deterministic-replay profile (for example `keccak256("deterministic-replay-v1")`) the attested outcome is a pure function of referenced public inputs, and a relying party recomputes the function over those inputs and compares, rather than weighting signatures across a set. A replay profile is sound only when the inputs were committed at or before evaluation time; see Security Considerations.
+
 ### Validation Lifecycle
 
 A request has two observable layers of lifecycle state: ERC-8004 registry state and validation-network-local state. The ERC-8004 Validation Registry is the canonical source for the final `response`, `responseHash`, `tag`, and `lastUpdate`. VNI events and `status()` provide additional observability for clients and indexers while the request is in flight.
@@ -355,6 +357,8 @@ The following tiers are provided as recommended starting points. They are not no
 
 Empirical analysis of any specific network's ability to satisfy each tier MUST be published alongside the deployed contract. See Security Considerations.
 
+The tiers measure operator diversity and apply to diversity-backed profiles. They are orthogonal to reproducibility-backed profiles (see Verification Profile): a deterministic-replay network at `selectionSize = 1` is not a Tier 1 cheap signal, because the verdict is recomputed by the client rather than attested by a single operator.
+
 ### Challenge Kinds (Informative)
 
 The `challengeKind` field tags the type of validation being requested. Networks MAY define their own kinds; the following are suggested as starting points:
@@ -382,6 +386,8 @@ The full list and the verification semantics for each kind belong in a separate,
 **Why JCS canonical JSON.** The off-chain aggregated file must hash deterministically across implementations. JCS is the cheapest path to that property.
 
 **Why a verification profile.** Validator signatures prove who attested, but they do not by themselves prove that validator selection was legitimate or that the network's aggregation path was independently verifiable. A compact `bytes32` profile identifier lets clients distinguish signature-only aggregation from stronger models such as indexer-attested, light-client-backed, zk-backed, or TEE-backed verification without forcing this interface to define a closed enum.
+
+**Why reproducibility-backed validation is a distinct assurance basis.** The verification profiles enumerated above all locate residual trust in a set: after signatures verify, a client still relies on the diversity or honesty of the operators, provers, or enclaves that produced the attestation. A second family locates assurance in reproducibility. Under a deterministic-replay profile the attested outcome is a pure function of referenced public inputs, and the relying party does not trust the attestation — it recomputes the function over those inputs and compares. This is the one profile under which the "network of independent validators does not mean end-to-end trustlessness" caveat above does not bind the client, because the client re-derives the verdict rather than accepting the tally. The Assurance Tiers table measures operator diversity and is orthogonal to this axis: a deterministic-replay network at `selectionSize = 1` is not a Tier 1 cheap signal but the strongest assurance the interface admits, since one recomputation settles it. The honest scope limit: this family applies only to outcomes decidable from public data by a deterministic function; subjective or private-input validation still needs the operator-diversity models above.
 
 **Why `agentId` stays `uint256`, and how it composes with ERC-8263.** This interface keeps `agentId` as ERC-8004's `uint256` (the ERC-721 `tokenId` assigned by the Identity Registry). The ERC-8004 + ERC-8263 + OCP composition does not redefine that type: ERC-8263 introduces an `agentIdScheme` discriminator, and for its REGISTRY scheme (`0x01`) — the one that bridges to ERC-8004 — the on-chain anchoring form is `bytes32(uint256(erc8004AgentId))`, a 32-byte zero-padded encoding of the same identifier. Resolution under scheme `0x01` goes through ERC-8004, so no change to VNI's `agentId` field is required for the two to compose; a network that anchors into an ERC-8263 surface simply zero-pads. The `wyriwe-input-provenance-v1` challenge kind above is the L2 input-trust layer of that same stack (ERC-8263 with the WYRIWE input-provenance profile), and `verificationProfile()` is the introspection signal for which model a network actually runs. This is documented here as a non-normative composition note; should a future ERC-8263 revision change the REGISTRY-scheme encoding or the underlying identifier type, that would be a separate, focused change.
 
@@ -425,6 +431,8 @@ A naive single-validator implementation is also provided in the test repository 
 
 **Stale attestations.** `issuedAt` is the validator's view, not the chain's. Clients SHOULD compare `issuedAt` against `lastUpdate` from the Validation Registry and reject responses with abnormal skew.
 
+**Input pre-commitment for replay profiles.** A deterministic-replay profile's contract with the client has two clauses: (1) recompute the function over the referenced inputs, and (2) verify those inputs were committed at or before the claimed evaluation time. Replay without pre-commitment proves determinism, not honesty — an operator free to select inputs after seeing the outcome it wants can produce any verdict and still replay clean. The pre-commitment mechanism itself is out of scope and substrate-neutral (an RFC 3161 timestamp, a transparency-log inclusion, a chain anchor). What is normative: a network advertising a replay profile MUST document which mechanism fixes its inputs, and clients MUST verify clause (2) before treating a replayed verdict as authoritative.
+
 **Censorship by a single network.** A network can refuse a request or selectively serve. ERC-8004's Validation Registry already permits multiple `validatorAddress` values per agent over time, so clients with censorship concerns SHOULD diversify across networks rather than relying on a single one.
 
 **Misrepresented network capabilities.** A network claiming to satisfy Tier 4 while operationally satisfying Tier 2 is the most likely misuse. The defense is the published concentration analysis plus third-party audits, not the contract.
@@ -455,6 +463,7 @@ The following are unresolved and explicitly invited for co-author and community 
 - EIP-712: Typed structured data hashing and signing — https://eips.ethereum.org/EIPS/eip-712
 - ERC-1271: Standard Signature Validation Method for Contracts — https://eips.ethereum.org/EIPS/eip-1271
 - RFC 8785: JSON Canonicalization Scheme — https://www.rfc-editor.org/rfc/rfc8785
+- Deterministic-replay profile reference (verifier and live registry demo) — https://github.com/MarkovianProtocol/erc8004-resolution-validator
 - A2A Protocol — https://github.com/google/A2A
 - x402 — https://www.x402.org/
 
